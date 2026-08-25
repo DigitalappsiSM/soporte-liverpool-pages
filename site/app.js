@@ -2,11 +2,13 @@
   const API = "https://portal-soporte-liverpool.escanor-enrique.chatgpt.site/api/tickets";
   const stores = window.LIVERPOOL_STORES || [];
   const selected = new Set();
+  let ticketType = "";
   let openedAt = Date.now();
 
   const q = (s) => document.querySelector(s);
   const form = q("#support-form");
   const requester = q("#requesterName");
+  const ticketTypeButtons = [...document.querySelectorAll(".ticket-type-card")];
   const storeInput = q("#store");
   const storeOptions = q("#store-options");
   const modelsSlot = q("#models-slot");
@@ -65,6 +67,7 @@
   }
 
   const isNameValid = () => requester.value.trim().length >= 3;
+  const isTicketTypeValid = () => ticketType === "soporte" || ticketType === "contenido";
   const isStoreValid = () => Boolean(currentStore());
   const areModelsValid = () => selected.size > 0;
   const isCommentValid = () => comments.value.trim().length >= MIN_COMMENT;
@@ -122,32 +125,36 @@
 
     // Summary line
     const sReq = q("#summary-requester");
+    const sType = q("#summary-type");
     const sStore = q("#summary-store");
     const sModels = q("#summary-models");
     sReq.textContent = requester.value.trim() || "Sin solicitante";
+    sType.textContent = ticketType ? (ticketType === "soporte" ? "Soporte" : "Contenido") : "Sin tipo de ticket";
     sStore.textContent = store ? store.label : "Sin tienda";
     sModels.textContent = selected.size ? [...selected].join(" · ") : "Sin soporte";
     sReq.classList.toggle("filled", isNameValid());
+    sType.classList.toggle("filled", isTicketTypeValid());
     sStore.classList.toggle("filled", isStoreValid());
     sModels.classList.toggle("filled", areModelsValid());
 
     // Step completion badges
     markStep(1, isNameValid());
-    markStep(2, isStoreValid());
-    markStep(3, areModelsValid());
-    markStep(4, isCommentValid());
+    markStep(2, isTicketTypeValid());
+    markStep(3, isStoreValid());
+    markStep(4, areModelsValid());
+    markStep(5, isCommentValid());
 
     // Live valid marker on store input once it matches
     if (isStoreValid()) setWrap(storeInput, "valid");
     else if (!storeInput.value) setWrap(storeInput, "neutral");
 
     // Progress bar
-    const done = [isNameValid(), isStoreValid(), areModelsValid(), isCommentValid()].filter(Boolean).length;
-    progressFill.style.width = (done / 4) * 100 + "%";
+    const done = [isNameValid(), isTicketTypeValid(), isStoreValid(), areModelsValid(), isCommentValid()].filter(Boolean).length;
+    progressFill.style.width = (done / 5) * 100 + "%";
     progressBar.setAttribute("aria-valuenow", String(done));
     stepsDone.textContent = String(done);
 
-    submit.disabled = !(done === 4);
+    submit.disabled = !(done === 5);
   }
 
   // ---- Field events (validate on blur, recover on input) ----
@@ -165,6 +172,18 @@
     else if (!isNameValid()) showError(requester, "requesterName-error", "Ingresa al menos 3 caracteres.");
     else { clearError(requester, "requesterName-error"); setWrap(requester, "valid"); }
   };
+
+  for (const button of ticketTypeButtons) {
+    button.onclick = () => {
+      ticketType = button.dataset.ticketType || "";
+      for (const option of ticketTypeButtons) {
+        const selectedType = option === button;
+        option.classList.toggle("selected", selectedType);
+        option.setAttribute("aria-checked", String(selectedType));
+      }
+      update();
+    };
+  }
 
   storeInput.oninput = () => {
     clearError(storeInput, "store-error");
@@ -210,6 +229,7 @@
 
     const body = new FormData();
     body.set("requesterName", requester.value.trim());
+    body.set("ticketType", ticketType);
     body.set("determinant", store.determinant);
     body.set("storeName", store.name);
     body.set("models", JSON.stringify([...selected]));
@@ -238,6 +258,11 @@
   q("#reset-button").onclick = () => {
     form.reset();
     selected.clear();
+    ticketType = "";
+    for (const button of ticketTypeButtons) {
+      button.classList.remove("selected");
+      button.setAttribute("aria-checked", "false");
+    }
     openedAt = Date.now();
     q("#success-state").hidden = true;
     q("#form-content").hidden = false;
