@@ -112,6 +112,17 @@ textarea.is-invalid { border-color: var(--danger); box-shadow: 0 0 0 4px var(--d
 
 .empty-hint { margin: 0; padding: 15px; border: 1px dashed var(--line-strong); border-radius: 13px; color: #7f8d9a; font-size: 12px; background: #f8fbfd; }
 
+/* ---------- Ticket type ---------- */
+.ticket-type-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.ticket-type-card { position: relative; min-height: 82px; padding: 15px 40px 15px 16px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 4px; border: 1px solid var(--line-strong); border-radius: var(--radius-md); background: #fff; color: var(--ink); cursor: pointer; text-align: left; transition: transform .16s var(--ease), border-color .18s var(--ease), background .18s var(--ease), box-shadow .18s var(--ease); }
+.ticket-type-card strong { font-size: 14px; }
+.ticket-type-card small { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.ticket-type-card > span { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); display: none; color: var(--blue); font-weight: 900; }
+.ticket-type-card:hover { transform: translateY(-1px); border-color: #a9bccb; }
+.ticket-type-card:focus-visible { outline: none; border-color: var(--blue); box-shadow: var(--focus-ring); }
+.ticket-type-card.selected { border-color: var(--blue); background: var(--blue-tint); color: var(--blue-dark); box-shadow: inset 0 0 0 1px rgba(8, 125, 187, .12); }
+.ticket-type-card.selected > span { display: block; }
+
 /* ---------- Model chips ---------- */
 .model-grid { display: flex; flex-wrap: wrap; gap: 9px; }
 .model-chip { min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fff; color: #465464; cursor: pointer; font-size: 12px; font-weight: 750; transition: transform .16s var(--ease), border-color .16s var(--ease), background .16s var(--ease); }
@@ -195,6 +206,7 @@ footer { padding: 4px 20px 28px; text-align: center; color: #8593a1; font-size: 
   .form-heading h2 { font-size: 21px; }
   form { padding: 6px 20px 23px; }
   .slot { padding: 23px 0; }
+  .ticket-type-grid { grid-template-columns: 1fr; }
   .model-chip { flex: 1 1 calc(50% - 9px); justify-content: center; }
   .submit-row { align-items: stretch; flex-direction: column; }
   .primary-button { width: 100%; }
