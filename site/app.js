@@ -8,6 +8,7 @@
   const q = (s) => document.querySelector(s);
   const form = q("#support-form");
   const requester = q("#requesterName");
+  const storeEmail = q("#storeEmail");
   const ticketTypeButtons = [...document.querySelectorAll(".ticket-type-card")];
   const storeInput = q("#store");
   const storeOptions = q("#store-options");
@@ -67,6 +68,11 @@
   }
 
   const isNameValid = () => requester.value.trim().length >= 3;
+  const normalizedStoreEmail = () => storeEmail.value.trim().toLowerCase();
+  const isStoreEmailValid = () => {
+    const value = normalizedStoreEmail();
+    return value === "" || /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@liverpool\.com\.mx$/.test(value);
+  };
   const isTicketTypeValid = () => ticketType === "soporte" || ticketType === "contenido";
   const isStoreValid = () => Boolean(currentStore());
   const areModelsValid = () => selected.size > 0;
@@ -154,7 +160,7 @@
     progressBar.setAttribute("aria-valuenow", String(done));
     stepsDone.textContent = String(done);
 
-    submit.disabled = !(done === 5);
+    submit.disabled = !(done === 5 && isStoreEmailValid());
   }
 
   // ---- Field events (validate on blur, recover on input) ----
@@ -171,6 +177,30 @@
     if (requester.value.trim() === "") { setWrap(requester, "neutral"); clearError(requester, "requesterName-error"); }
     else if (!isNameValid()) showError(requester, "requesterName-error", "Ingresa al menos 3 caracteres.");
     else { clearError(requester, "requesterName-error"); setWrap(requester, "valid"); }
+  };
+
+  storeEmail.oninput = () => {
+    if (!storeEmail.value.trim()) {
+      clearError(storeEmail, "storeEmail-error");
+      setWrap(storeEmail, "neutral");
+    } else if (isStoreEmailValid()) {
+      clearError(storeEmail, "storeEmail-error");
+      setWrap(storeEmail, "valid");
+    }
+    update();
+  };
+  storeEmail.onblur = () => {
+    if (!storeEmail.value.trim()) {
+      clearError(storeEmail, "storeEmail-error");
+      setWrap(storeEmail, "neutral");
+    } else if (!isStoreEmailValid()) {
+      showError(storeEmail, "storeEmail-error", "Usa un correo válido que termine en @liverpool.com.mx.");
+    } else {
+      storeEmail.value = normalizedStoreEmail();
+      clearError(storeEmail, "storeEmail-error");
+      setWrap(storeEmail, "valid");
+    }
+    update();
   };
 
   for (const button of ticketTypeButtons) {
@@ -229,6 +259,7 @@
 
     const body = new FormData();
     body.set("requesterName", requester.value.trim());
+    if (normalizedStoreEmail()) body.set("storeEmail", normalizedStoreEmail());
     body.set("ticketType", ticketType);
     body.set("determinant", store.determinant);
     body.set("storeName", store.name);
@@ -244,6 +275,9 @@
       if (!response.ok || !result.folio) throw new Error(result.error || "No fue posible crear el ticket.");
       q("#form-content").hidden = true;
       q("#ticket-folio").textContent = result.folio;
+      q("#success-message").textContent = normalizedStoreEmail()
+        ? "La incidencia quedó registrada. Las actualizaciones se enviarán a Jaqueline Juárez y a " + normalizedStoreEmail() + "."
+        : "La incidencia quedó registrada y las actualizaciones se enviarán a Jaqueline Juárez.";
       q("#success-state").hidden = false;
     } catch (reason) {
       error.textContent = reason instanceof Error ? reason.message : "No fue posible crear el ticket.";
@@ -270,8 +304,10 @@
     submit.classList.remove("is-loading");
     submit.innerHTML = "Enviar ticket <span>→</span>";
     setWrap(requester, "neutral");
+    setWrap(storeEmail, "neutral");
     setWrap(storeInput, "neutral");
     clearError(requester, "requesterName-error");
+    clearError(storeEmail, "storeEmail-error");
     clearError(storeInput, "store-error");
     clearError(comments, "comments-error");
     renderModels();
