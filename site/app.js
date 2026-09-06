@@ -275,9 +275,12 @@
       if (!response.ok || !result.folio) throw new Error(result.error || "No fue posible crear el ticket.");
       q("#form-content").hidden = true;
       q("#ticket-folio").textContent = result.folio;
-      q("#success-message").textContent = normalizedStoreEmail()
-        ? "La incidencia quedó registrada. Las actualizaciones se enviarán a Jaqueline Juárez y a " + normalizedStoreEmail() + "."
-        : "La incidencia quedó registrada y las actualizaciones se enviarán a Jaqueline Juárez.";
+      const warnings = Array.isArray(result.warnings) ? result.warnings.filter((message) => typeof message === "string") : [];
+      q("#success-message").textContent = warnings.length
+        ? "La incidencia quedó registrada. " + warnings.join(" ")
+        : normalizedStoreEmail()
+          ? "La incidencia quedó registrada. Jaqueline Juárez está incluida en el seguimiento y el correo de tienda se agregó en copia."
+          : "La incidencia quedó registrada. Jaqueline Juárez está incluida en el seguimiento.";
       q("#success-state").hidden = false;
     } catch (reason) {
       error.textContent = reason instanceof Error ? reason.message : "No fue posible crear el ticket.";
