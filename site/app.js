@@ -279,7 +279,7 @@
       q("#success-message").textContent = warnings.length
         ? "La incidencia quedó registrada. " + warnings.join(" ")
         : normalizedStoreEmail()
-          ? "La incidencia quedó registrada. Jaqueline Juárez está incluida en el seguimiento y el correo de tienda se agregó en copia."
+          ? "La incidencia quedó registrada. Jaqueline Juárez y el correo de la tienda quedaron incluidos como seguidores del ticket."
           : "La incidencia quedó registrada. Jaqueline Juárez está incluida en el seguimiento.";
       q("#success-state").hidden = false;
     } catch (reason) {
