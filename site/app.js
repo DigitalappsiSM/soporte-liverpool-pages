@@ -11,8 +11,9 @@
   const storeEmail = q("#storeEmail");
   const ticketTypeButtons = [...document.querySelectorAll(".ticket-type-card")];
   const storeInput = q("#store");
-  const storeOptions = q("#store-options");
+  const storeList = q("#store-options");
   const modelsSlot = q("#models-slot");
+  const commentsSlot = q("#comments-slot");
   const modelGrid = q("#model-grid");
   const modelsEmpty = q("#models-empty");
   const comments = q("#comments");
@@ -23,20 +24,21 @@
   const progressFill = q("#progress-fill");
   const progressBar = q("#progress-bar");
   const stepsDone = q("#steps-done");
+  const stepsTotal = q("#steps-total");
   const commentCount = q("#comment-count");
 
   const MIN_COMMENT = 12;
+  const TYPE_LABELS = { soporte: "Soporte", contenido: "Contenido", testigos: "Testigos" };
+  const isTestigos = () => ticketType === "testigos";
 
-  // Populate store datalist
-  for (const store of stores) {
-    const option = document.createElement("option");
-    option.value = store.label;
-    option.label = store.determinant;
-    storeOptions.append(option);
-  }
+  // Accent- and case-insensitive text used to match stores.
+  const normalize = (text) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-  const currentStore = () =>
-    stores.find((item) => item.label === storeInput.value || item.determinant === storeInput.value);
+  const currentStore = () => {
+    const value = normalize(storeInput.value);
+    if (!value) return undefined;
+    return stores.find((item) => normalize(item.label) === value || item.determinant === value);
+  };
 
   function chipClass(model) {
     const key = model.toLowerCase().replaceAll(" ", "-").replace("°", "");
@@ -73,7 +75,7 @@
     const value = normalizedStoreEmail();
     return value === "" || /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@liverpool\.com\.mx$/.test(value);
   };
-  const isTicketTypeValid = () => ticketType === "soporte" || ticketType === "contenido";
+  const isTicketTypeValid = () => Object.hasOwn(TYPE_LABELS, ticketType);
   const isStoreValid = () => Boolean(currentStore());
   const areModelsValid = () => selected.size > 0;
   const isCommentValid = () => comments.value.trim().length >= MIN_COMMENT;
@@ -135,9 +137,10 @@
     const sStore = q("#summary-store");
     const sModels = q("#summary-models");
     sReq.textContent = requester.value.trim() || "Sin solicitante";
-    sType.textContent = ticketType ? (ticketType === "soporte" ? "Soporte" : "Contenido") : "Sin tipo de ticket";
+    sType.textContent = TYPE_LABELS[ticketType] || "Sin tipo de ticket";
     sStore.textContent = store ? store.label : "Sin tienda";
     sModels.textContent = selected.size ? [...selected].join(" · ") : "Sin soporte";
+    sModels.hidden = isTestigos();
     sReq.classList.toggle("filled", isNameValid());
     sType.classList.toggle("filled", isTicketTypeValid());
     sStore.classList.toggle("filled", isStoreValid());
@@ -154,13 +157,21 @@
     if (isStoreValid()) setWrap(storeInput, "valid");
     else if (!storeInput.value) setWrap(storeInput, "neutral");
 
+    // Testigos only needs requester, type and store.
+    modelsSlot.hidden = isTestigos();
+    commentsSlot.hidden = isTestigos();
+
     // Progress bar
-    const done = [isNameValid(), isTicketTypeValid(), isStoreValid(), areModelsValid(), isCommentValid()].filter(Boolean).length;
-    progressFill.style.width = (done / 5) * 100 + "%";
+    const steps = [isNameValid(), isTicketTypeValid(), isStoreValid()];
+    if (!isTestigos()) steps.push(areModelsValid(), isCommentValid());
+    const done = steps.filter(Boolean).length;
+    progressFill.style.width = (done / steps.length) * 100 + "%";
+    progressBar.setAttribute("aria-valuemax", String(steps.length));
     progressBar.setAttribute("aria-valuenow", String(done));
     stepsDone.textContent = String(done);
+    stepsTotal.textContent = String(steps.length);
 
-    submit.disabled = !(done === 5 && isStoreEmailValid());
+    submit.disabled = !(done === steps.length && isStoreEmailValid());
   }
 
   // ---- Field events (validate on blur, recover on input) ----
@@ -215,13 +226,118 @@
     };
   }
 
+  // ---- Store combobox (replaces <datalist>, which renders inconsistently across browsers) ----
+  let matches = [];
+  let activeIndex = -1;
+  let lastStore;
+
+  function filterStores() {
+    const query = normalize(storeInput.value);
+    if (!query) return stores;
+    return stores.filter((item) => item.determinant.startsWith(query) || normalize(item.label).includes(query));
+  }
+
+  function setActive(index) {
+    const options = storeList.querySelectorAll(".combobox-option");
+    options.forEach((option, i) => option.classList.toggle("is-active", i === index));
+    activeIndex = index;
+    if (index >= 0 && options[index]) {
+      storeInput.setAttribute("aria-activedescendant", options[index].id);
+      options[index].scrollIntoView({ block: "nearest" });
+    } else {
+      storeInput.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function openList() {
+    matches = filterStores();
+    const chosen = currentStore();
+    storeList.replaceChildren();
+    if (!matches.length) {
+      const empty = document.createElement("li");
+      empty.className = "combobox-empty";
+      empty.textContent = "No encontramos tiendas con ese determinante o nombre.";
+      storeList.append(empty);
+    }
+    matches.forEach((item, i) => {
+      const option = document.createElement("li");
+      option.id = "store-option-" + item.determinant;
+      option.className = "combobox-option";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", String(item === chosen));
+      const code = document.createElement("b");
+      code.textContent = item.determinant;
+      const name = document.createElement("span");
+      name.textContent = item.name;
+      option.append(code, name);
+      option.onclick = () => chooseStore(item);
+      option.onmousemove = () => { if (activeIndex !== i) setActive(i); };
+      storeList.append(option);
+    });
+    storeList.hidden = false;
+    storeInput.setAttribute("aria-expanded", "true");
+    setActive(-1);
+  }
+
+  function closeList() {
+    storeList.hidden = true;
+    storeInput.setAttribute("aria-expanded", "false");
+    setActive(-1);
+  }
+
+  function storeChanged() {
+    const store = currentStore();
+    if (store === lastStore) return update();
+    lastStore = store;
+    renderModels();
+  }
+
+  function chooseStore(item) {
+    storeInput.value = item.label;
+    clearError(storeInput, "store-error");
+    setWrap(storeInput, "valid");
+    closeList();
+    storeChanged();
+  }
+
+  // Keep focus in the input while tapping or clicking an option.
+  storeList.onmousedown = (event) => event.preventDefault();
+
+  const narrowScreen = window.matchMedia("(max-width: 620px)");
+  storeInput.onfocus = () => {
+    openList();
+    // On phones, lift the field so the on-screen keyboard does not cover the list.
+    if (narrowScreen.matches) setTimeout(() => storeInput.scrollIntoView({ block: "start", behavior: "smooth" }), 250);
+  };
+  storeInput.onclick = () => { if (storeList.hidden) openList(); };
   storeInput.oninput = () => {
     clearError(storeInput, "store-error");
-    renderModels();
+    openList();
+    storeChanged();
+  };
+  storeInput.onkeydown = (event) => {
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (storeList.hidden) openList();
+      if (!matches.length) return;
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      setActive((activeIndex + step + matches.length) % matches.length);
+    } else if (event.key === "Enter") {
+      if (storeList.hidden) return;
+      event.preventDefault();
+      if (activeIndex >= 0) chooseStore(matches[activeIndex]);
+      else if (matches.length === 1) chooseStore(matches[0]);
+    } else if (event.key === "Escape" && !storeList.hidden) {
+      event.preventDefault();
+      closeList();
+    }
   };
   storeInput.onblur = () => {
+    closeList();
+    const store = currentStore();
+    if (store) storeInput.value = store.label;
     if (storeInput.value.trim() === "") { setWrap(storeInput, "neutral"); clearError(storeInput, "store-error"); }
-    else if (!isStoreValid()) showError(storeInput, "store-error", "Selecciona una tienda de la lista.");
+    else if (!store) showError(storeInput, "store-error", "Selecciona una tienda de la lista.");
     else { clearError(storeInput, "store-error"); setWrap(storeInput, "valid"); }
   };
 
@@ -246,7 +362,7 @@
     const store = currentStore();
     if (submit.disabled || !store) return;
 
-    const file = attachment.files && attachment.files[0];
+    const file = !isTestigos() && attachment.files && attachment.files[0];
     if (file && file.size > 10485760) {
       error.textContent = "El archivo no puede superar 10 MB.";
       error.hidden = false;
@@ -263,8 +379,8 @@
     body.set("ticketType", ticketType);
     body.set("determinant", store.determinant);
     body.set("storeName", store.name);
-    body.set("models", JSON.stringify([...selected]));
-    body.set("comments", comments.value.trim());
+    body.set("models", JSON.stringify(isTestigos() ? [] : [...selected]));
+    body.set("comments", isTestigos() ? "" : comments.value.trim());
     body.set("openedAt", String(openedAt));
     body.set("website", q("#website").value);
     if (file) body.set("attachment", file);
@@ -313,6 +429,8 @@
     clearError(storeEmail, "storeEmail-error");
     clearError(storeInput, "store-error");
     clearError(comments, "comments-error");
+    closeList();
+    lastStore = undefined;
     renderModels();
   };
 
