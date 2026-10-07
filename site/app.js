@@ -1,5 +1,5 @@
 (() => {
-  const API = "https://portal-soporte-liverpool.escanor-enrique.chatgpt.site/api/tickets";
+  const API = "https://portal-soporte-liverpool.chelito-esteban91.workers.dev/api/tickets";
   const stores = window.LIVERPOOL_STORES || [];
   const selected = new Set();
   let ticketType = "";
