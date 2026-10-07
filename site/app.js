@@ -321,7 +321,8 @@
       if (storeList.hidden) openList();
       if (!matches.length) return;
       const step = event.key === "ArrowDown" ? 1 : -1;
-      setActive((activeIndex + step + matches.length) % matches.length);
+      const start = activeIndex < 0 && step < 0 ? 0 : activeIndex;
+      setActive((start + step + matches.length) % matches.length);
     } else if (event.key === "Enter") {
       if (storeList.hidden) return;
       event.preventDefault();
